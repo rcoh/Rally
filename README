@@ -1,0 +1,2 @@
+A basic reliable chat implementation written in python.  Curses based UI to follow.  Extensive use
+of fancy decorators just for fun.
