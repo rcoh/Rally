@@ -5,6 +5,8 @@ EOM = '\n' + '-EOM-' + '\n'
 CONENT_MESSAGE = 0
 ACK_MESSAGE = 1
 class Message(object):
+ 
+  
   def __init__(self, sender, content, msg_type):
     self.sender = sender
     self.content = content
@@ -20,6 +22,10 @@ class Message(object):
   def __repr__(self):
     return "Sender: %s Content:%s Timestamp:%s" % (self.sender, 
                                                      self.content, self.timestamp)
+
+  def __eq__(self, other):
+    return self.sender == other.sender and self.content == other.content and \
+      self.timestamp == other.timestamp
   
   def is_ack(self):
     return self.type == ACK_MESSAGE

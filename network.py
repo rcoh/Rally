@@ -5,7 +5,7 @@ import threading
 from util import *
 from model import *
 SERVER_PORT = 5959
-SERVER_LOC = "localhost"
+SERVER_LOC = '' 
 class ReliableChatClientSocket(object):
   """
   Fairly standard client socket class.  Offers abstract methods
@@ -26,6 +26,7 @@ class ReliableChatClientSocket(object):
     try:
       data = self.sock.recv(1024)
       if not data:
+        print "i'm disconnected!"
         self.disconnected()
       else:
         self.read()

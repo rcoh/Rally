@@ -27,6 +27,7 @@ class ReliableChatServer(ReliableChatServerSocket):
     self.live_messages = {} #hash -> Message
     self.dead_messages = {} #hash -> Message
     self.msg_acks = {}
+    self.sent_msgs = {}
   
   def incoming_message(self, message, client):
     print 'incoming!', message
@@ -34,8 +35,12 @@ class ReliableChatServer(ReliableChatServerSocket):
       self.ack_received(message, client) 
     else:
       for ptr in self.client_ptrs:
-        print 'sending to client'
-        self.send_to_client(ptr, message)
+        if not message.get_hash() in self.sent_msgs:
+          self.sent_msgs[message.get_hash()] = []
+
+        if not ptr in self.sent_msgs[message.get_hash()]:
+          self.send_to_client(ptr, message)
+          self.sent_msg[message.get_hash()].append(ptr)
  
   @retry_with_backoff("msg_acked")
   def send_to_client(self, client_ptr, message):
@@ -69,13 +74,8 @@ class ReliableChatClient(ReliableChatClientSocket):
     self.live_pile = {}
     self.dead_pile = {}
     self.queue_lock = threading.RLock() 
-    self.connect()
-    self.run_forever()
-
-  @async
-  def run_forever(self):
-    while 1:
-      pass
+    self.connected = False
+    self.try_connect()
 
   @retry_with_backoff("message_acked")
   def say_require_ack(self, message):
@@ -88,10 +88,13 @@ class ReliableChatClient(ReliableChatClientSocket):
 
   @synchronized("queue_lock")
   def rcv_message(self, message):
-    print 'recieving:', message
-    self.rcv_queue.append(message)
+    if not message in self.rcv_queue: #TODO: doesn't work until equals is overridden
+      self.rcv_queue.append(message)
+      self.got_new_message(message)
+
     if message in self.send_queue:
       self.send_queue.remove(message)
+
     if message.get_hash() in self.live_pile:
       del self.live_pile[message.get_hash()]
     
@@ -100,4 +103,24 @@ class ReliableChatClient(ReliableChatClientSocket):
 
   def message_acked(self, message):
     return message.get_hash() in self.dead_pile
+
+  def got_new_message(self, message):
+    print message, 'override!'
+  
+  @retry_with_backoff("is_connected")
+  def try_connect(self):
+    try:
+      self.connect()
+    except Exception as e: #TODO: actual exception types
+      print 'tried to connect, but failed'
+      print e
+      return
+
+    self.connected = True
+
+  def is_connected(self):
+    return self.connected
+
+  def disconnected(self):
+    self.try_connect()
 
