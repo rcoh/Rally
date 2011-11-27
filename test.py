@@ -13,11 +13,8 @@ class retry_tester(object):
     self.valid -= 1
     return self.valid == 0
 
-#r = retry_tester()
-#r.some_method(5,10)
 m = Message('rcoh', 'hey', 0)
 ms = m.serialize()
 md = Message.deserialize(ms)
 print md
 print ms
-#print ms

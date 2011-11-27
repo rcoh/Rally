@@ -5,7 +5,7 @@ import util
 from rally import *
 from model import Message
 import threading
-chat_height = 5
+chat_height = 3
 
 class RallyClient(object):
   def __init__(self):
@@ -82,9 +82,9 @@ class RallyCursesUI(object):
           cur_y -= (lines_required-1)
         message_index -= 1
 
-    self.new_msg_panel.move(1,1)
-    self.new_msg_panel.refresh()
+    self.new_msg_panel.addstr(1,1,'')
     self.old_chats.refresh()
+    self.new_msg_panel.refresh()
 
   def user_message(self, message):
     """To be overriden"""
