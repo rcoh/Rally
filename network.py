@@ -23,7 +23,7 @@ class ReliableChatClientSocket(object):
   
   @async 
   def read(self):
-    try:
+    #try:
       data = self.sock.recv(1024)
       if not data:
         print "i'm disconnected!"
@@ -31,8 +31,8 @@ class ReliableChatClientSocket(object):
       else:
         self.read()
         self.rcv_message(Message.deserialize(data))
-    except Exception as ex:
-      print ex
+    #except Exception as ex:
+    #  print ex
     
   def shutdown(self):
     self.sock.close()

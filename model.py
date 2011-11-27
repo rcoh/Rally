@@ -2,19 +2,23 @@ import pickle
 import time
 EOM = '\n' + '-EOM-' + '\n'
 
-CONENT_MESSAGE = 0
+CONTENT_MESSAGE = 0
 ACK_MESSAGE = 1
+NEW_CONNECTION = 2
 class Message(object):
  
   
   def __init__(self, sender, content, msg_type):
-    self.sender = sender
-    self.content = content
+    """
+    Creates a new Message.  sender and content are recast as strings.
+    """
+    self.sender = str(sender)
+    self.content = str(content)
     self.timestamp = time.time()
     self.type = msg_type
 
   def get_hash(self):
-    return abs(hash(self.sender + self.content + str(self.timestamp)))
+    return abs(hash(str(self.sender) + str(self.content) + str(self.timestamp)))
   
   def serialize(self):
     return pickle.dumps(self, 2) + EOM 
@@ -29,6 +33,10 @@ class Message(object):
   
   def is_ack(self):
     return self.type == ACK_MESSAGE
+
+  def is_new_connect(self):
+    return self.type == NEW_CONNECTION
+
   @staticmethod
   def is_eom(line):
     return '-EOM-' in line

@@ -1,4 +1,5 @@
 import curses
+import sys
 import math
 from curses import wrapper
 import util
@@ -8,9 +9,9 @@ import threading
 chat_height = 3
 
 class RallyClient(object):
-  def __init__(self):
+  def __init__(self, server, port):
     self.user_name = raw_input('user name?')
-    self.client = ReliableChatClient(self.user_name, ('raptor-lights.mit.edu', 5959))
+    self.client = ReliableChatClient(self.user_name, (server, port))
     self.ui = RallyCursesUI()
     self.ui.user_message = self.user_message #late-binding
     self.client.data_changed = self.ui.render_chats
@@ -82,7 +83,7 @@ class RallyCursesUI(object):
           cur_y -= (lines_required-1)
         message_index -= 1
 
-    self.new_msg_panel.addstr(1,1,'')
+#    self.new_msg_panel.addstr(1,1,'')
     self.old_chats.refresh()
     self.new_msg_panel.refresh()
 
@@ -100,4 +101,11 @@ class RallyCursesUI(object):
     self.ui_lock.release()
 
 if __name__ == "__main__":
-  u = RallyClient()
+  server = 'raptor-lights.mit.edu'
+  port = 5959
+  if len(sys.argv) >= 2:
+    server = sys.argv[1]
+  if len(sys.argv) == 3:
+    port = int(sys.argv[2])
+
+  u = RallyClient(server, port)

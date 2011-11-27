@@ -24,23 +24,30 @@ class ReliableChatServer(ReliableChatServerSocket):
   
   def __init__(self, port):
     ReliableChatServerSocket.__init__(self)
-    self.live_messages = {} #hash -> Message
-    self.dead_messages = {} #hash -> Message
     self.msg_acks = {}
     self.sent_msgs = {}
+    self.all_msgs = {} #timestamp -> msg
   
   def incoming_message(self, message, client):
     print 'incoming!', message
     if message.is_ack():
       self.ack_received(message, client) 
+    #TODO: hashing scheme to provide proof of no-missed-messages
+    elif message.is_new_connect(): #catch clients up on missed messages
+      latest = float(message.content)
+      for ts in self.all_msgs:
+        if ts > latest:
+          self.send_to_client(client, self.all_msgs[ts])
+
     else:
+      self.all_msgs[message.timestamp] = message
       for ptr in self.client_ptrs:
         if not message.get_hash() in self.sent_msgs:
           self.sent_msgs[message.get_hash()] = []
 
         if not ptr in self.sent_msgs[message.get_hash()]:
           self.send_to_client(ptr, message)
-          self.sent_msg[message.get_hash()].append(ptr)
+          self.sent_msgs[message.get_hash()].append(ptr)
  
   @retry_with_backoff("msg_acked")
   def send_to_client(self, client_ptr, message):
@@ -56,15 +63,6 @@ class ReliableChatServer(ReliableChatServerSocket):
     if message.get_hash() in self.msg_acks:
       return client in self.msg_acks[message.get_hash()]
 
-  def new_msg(self, message):
-    message.require_acks(self.clients.keys[:])
-    self.live_messages[message.get_hash()] = message
-    self.distribute(message)
-
-  def check_for_missed_messages(self):
-    pass
-
-
 class ReliableChatClient(ReliableChatClientSocket):
   
   def __init__(self, name, server_loc):
@@ -74,6 +72,7 @@ class ReliableChatClient(ReliableChatClientSocket):
     self.dead_pile = {}
     self.queue_lock = threading.RLock() 
     self.connected = False
+    self.ready_for_messages = False
     self.try_connect()
 
   @retry_with_backoff("message_acked")
@@ -100,6 +99,18 @@ class ReliableChatClient(ReliableChatClientSocket):
     self.dead_pile[message.get_hash()] = message
     self.say(Message.ack_for(message))
     self.data_changed_ptr()
+  
+  def maintain_stack(self):
+    self.msg_stack.sort()
+
+  def send_new_connection_message(self): #TODO: specific ack + retry logic
+    if self.msg_stack:
+      last_received, message = self.msg_stack[-1]
+    else:
+      last_received = -1
+
+    self.say(Message('', last_received, 2)) #TODO: use constant
+    self.ready_for_messages = True
 
   def message_acked(self, message):
     return message.get_hash() in self.dead_pile
@@ -108,6 +119,7 @@ class ReliableChatClient(ReliableChatClientSocket):
     pass
 
   def data_changed_ptr(self):
+    self.maintain_stack()
     msgs = [m for t,m in self.msg_stack]
     return self.data_changed(msgs, self.dead_pile)
 
@@ -116,19 +128,22 @@ class ReliableChatClient(ReliableChatClientSocket):
   
   @retry_with_backoff("is_connected")
   def try_connect(self):
-    try:
+    #try:
       self.connect()
-    except Exception as e: 
+      self.send_new_connection_message()
+      self.connected = True
+      return
+    #except Exception as e: 
       print 'tried to connect, but failed'
       print e
       self.connected = False
       return
 
-    self.connected = True
 
   def is_connected(self):
     return self.connected
 
   def disconnected(self):
+    self.connected = False
     self.try_connect()
 
