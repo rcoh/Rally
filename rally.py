@@ -69,8 +69,7 @@ class ReliableChatClient(ReliableChatClientSocket):
   
   def __init__(self, name, server_loc):
     super(ReliableChatClient, self).__init__(*server_loc)
-    self.send_queue = [] #messages that have not been acked
-    self.rcv_queue = [] #messages that have been acked / messages from others
+    self.msg_stack = []
     self.live_pile = {}
     self.dead_pile = {}
     self.queue_lock = threading.RLock() 
@@ -79,21 +78,19 @@ class ReliableChatClient(ReliableChatClientSocket):
 
   @retry_with_backoff("message_acked")
   def say_require_ack(self, message):
-    self.send_queue.append(message)
+    self.msg_stack.append((message.timestamp, message))
     self.live_pile[message.get_hash()] = message
     self.say(message)
+    self.got_new_message(message)
     
   def say(self, message):
     self.send_message(message)
 
   @synchronized("queue_lock")
   def rcv_message(self, message):
-    if not message in self.rcv_queue: #TODO: doesn't work until equals is overridden
-      self.rcv_queue.append(message)
+    if not (message.timestamp, message) in self.msg_stack:
+      self.msg_stack.append((message.timestamp, message))
       self.got_new_message(message)
-
-    if message in self.send_queue:
-      self.send_queue.remove(message)
 
     if message.get_hash() in self.live_pile:
       del self.live_pile[message.get_hash()]
@@ -111,9 +108,10 @@ class ReliableChatClient(ReliableChatClientSocket):
   def try_connect(self):
     try:
       self.connect()
-    except Exception as e: #TODO: actual exception types
+    except Exception as e: 
       print 'tried to connect, but failed'
       print e
+      self.connected = False
       return
 
     self.connected = True
