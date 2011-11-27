@@ -78,10 +78,12 @@ class ReliableChatClient(ReliableChatClientSocket):
 
   @retry_with_backoff("message_acked")
   def say_require_ack(self, message):
-    self.msg_stack.append((message.timestamp, message))
-    self.live_pile[message.get_hash()] = message
+    if not (message.timestamp, message) in self.msg_stack:
+      self.msg_stack.append((message.timestamp, message))
+      self.live_pile[message.get_hash()] = message
+
     self.say(message)
-    self.got_new_message(message)
+    self.data_changed_ptr()
     
   def say(self, message):
     self.send_message(message)
@@ -97,12 +99,20 @@ class ReliableChatClient(ReliableChatClientSocket):
     
     self.dead_pile[message.get_hash()] = message
     self.say(Message.ack_for(message))
+    self.data_changed_ptr()
 
   def message_acked(self, message):
     return message.get_hash() in self.dead_pile
 
   def got_new_message(self, message):
-    print message, 'override!'
+    pass
+
+  def data_changed_ptr(self):
+    msgs = [m for t,m in self.msg_stack]
+    return self.data_changed(msgs, self.dead_pile)
+
+  def data_changed(self, messages, acked_dict):
+    print 'override!'
   
   @retry_with_backoff("is_connected")
   def try_connect(self):
