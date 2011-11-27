@@ -1,2 +1,5 @@
-A basic reliable chat implementation written in python.  Curses based UI to follow.  Extensive use
+Usage:
+python ui.py
+
+A basic reliable chat implementation written in python.  Extensive use
 of fancy decorators just for fun.
