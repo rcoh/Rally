@@ -76,7 +76,7 @@ class RallyCursesUI(object):
         cur_y -= lines_required
         if cur_y >= 0:
           #color = curses.COLOR_BLACK if message.get_hash() in acked_dict else curses.COLOR_RED
-          extra = '' if message.get_hash() in acked_dict else ' *unreceived*'
+          extra = '' if message_pile[message_index].get_hash() in acked_dict else ' *unreceived*'
           self.old_chats.addstr(cur_y, 0, self.get_message_text(message_pile[message_index]) + extra, color)
           cur_y -= (lines_required-1)
         message_index -= 1
