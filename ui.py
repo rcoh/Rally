@@ -15,6 +15,7 @@ class RallyClient(object):
     self.ui = RallyCursesUI()
     self.ui.user_message = self.user_message #late-binding
     self.client.data_changed = self.ui.render_chats
+    self.client.try_connect()
     try:
       self.ui.start()
     finally:

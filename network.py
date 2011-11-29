@@ -15,6 +15,8 @@ class ReliableChatClientSocket(object):
     self.target_address = target_address
     self.target_port = target_port
     self.sock = None
+    self.buffer = []
+    self.b_lock = threading.Lock()
 
   def connect(self):
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,14 +28,24 @@ class ReliableChatClientSocket(object):
     #try:
       data = self.sock.recv(1024)
       if not data:
-        print "i'm disconnected!"
         self.disconnected()
       else:
+        self.buffer_new_data(data)
         self.read()
-        self.rcv_message(Message.deserialize(data))
     #except Exception as ex:
     #  print ex
-    
+#  @synchronized("b_lock")
+  def buffer_new_data(self, data):
+    self.buffer += data
+    while self.buffer:
+      new_msg, leftover = Message.deserialize(self.buffer)
+      if new_msg:
+        self.rcv_message(new_msg)
+        self.buffer = leftover
+      else:
+        #we have part of a message
+        break
+
   def shutdown(self):
     self.sock.close()
     
@@ -49,12 +61,13 @@ class ReliableChatClientSocket(object):
     print 'disconnected'
     
 class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-  def __init__(self):
+  def __init__(self, port):
+    self.allow_reuse_address = True
     SocketServer.TCPServer.__init__(self,
-                                    (SERVER_LOC, SERVER_PORT),
+                                    (SERVER_LOC, port),
                                     ReliableChatRequestHandler)
     self.client_ptrs = []
-    self.client_lock = threading.RLock()
+    self.client_lock = threading.Lock()
 
   @synchronized("client_lock")
   def add_client(self, write_ptr):
@@ -75,17 +88,22 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
 
 class ReliableChatRequestHandler(SocketServer.StreamRequestHandler):
   def handle(self):
-    buf = ''
+    self.buf = ''
     while 1:
-      line = self.rfile.readline()
-      if not line:
+      print 'about to read'
+      chunk = self.connection.recv(1024)
+      if not chunk:
         break
-      elif Message.is_eom(line):
-        buf += line
-        self.server.incoming_message(Message.deserialize(buf), self.wfile) 
-        buf = ''
       else:
-        buf += line
+        self.buf += chunk 
+        self.buffer_new_data()
+  
+  def buffer_new_data(self):
+    while self.buf:
+      new_msg, leftover = Message.deserialize(self.buf)
+      if new_msg:
+        self.server.incoming_message(new_msg, self.wfile)
+        self.buf = leftover
 
   def setup(self):
     print 'trying to setup'

@@ -14,7 +14,14 @@ class retry_tester(object):
     return self.valid == 0
 
 m = Message('rcoh', 'hey', 0)
-ms = m.serialize()
-md = Message.deserialize(ms)
-print md
-print ms
+ms = list(m.serialize())
+md, leftover = Message.deserialize(ms)
+assert m == md
+
+m2 = Message('rcoh', 'hey2', 0)
+
+total = ms + list(m2.serialize())
+m1d, left = Message.deserialize(total)
+m2d, more = Message.deserialize(left)
+assert m == m1d
+assert m2d == m2

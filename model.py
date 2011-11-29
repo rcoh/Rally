@@ -1,6 +1,7 @@
 import pickle
 import time
-EOM = '\n' + '-EOM-' + '\n'
+import curses
+from util import *
 
 CONTENT_MESSAGE = 0
 ACK_MESSAGE = 1
@@ -18,10 +19,12 @@ class Message(object):
     self.type = msg_type
 
   def get_hash(self):
-    return abs(hash(str(self.sender) + str(self.content) + str(self.timestamp)))
+    return str(abs(hash(str(self.sender) + str(self.content) + str(self.timestamp))))
   
   def serialize(self):
-    return pickle.dumps(self, 2) + EOM 
+    msg = pickle.dumps(self, 2)
+    total_len = len(msg)
+    return str(total_len) + '!' + msg
   
   def __repr__(self):
     return "Sender: %s Content:%s Timestamp:%s" % (self.sender, 
@@ -30,6 +33,9 @@ class Message(object):
   def __eq__(self, other):
     return self.sender == other.sender and self.content == other.content and \
       self.timestamp == other.timestamp
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
   
   def is_ack(self):
     return self.type == ACK_MESSAGE
@@ -38,16 +44,26 @@ class Message(object):
     return self.type == NEW_CONNECTION
 
   @staticmethod
-  def is_eom(line):
-    return '-EOM-' in line
-
-  @staticmethod
   def ack_for(msg):
     return Message(msg.sender, msg.get_hash(), ACK_MESSAGE)
 
   @staticmethod
   def deserialize(data):
-    return pickle.loads(data[:-len(EOM)]) #strip newline character
-
-
+    #check length:
+    data = ''.join(data) #strify for convienience
+    delim = data.index('!')
+    expected_len = int(data[0:delim])
+    msg = data[delim+1:delim+1+expected_len]
+    leftovers = data[delim+1+expected_len:]
+    if expected_len != len(msg):
+      leftovers = data
+      return None, leftovers
+    try:
+      message = pickle.loads(msg) #strip newline character
+      log('good message' + data) 
+      return message, leftovers
+   
+    except Exception as ex:
+      log('bad' + data)
+      return Message('message parsing failed', 'failure', 0)
 
