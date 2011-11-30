@@ -30,6 +30,22 @@ class RallyCursesUI(object):
   def __init__(self):
 
     self.ui_lock = threading.RLock()
+    self.can_notify = self.setup_notify()
+
+  def notify(self, title, msg):
+    if self.can_notify:
+      n = pynotify.Notification(title, msg)
+      n.show()
+
+  def setup_notify(self):
+    try:
+      import pynotify
+      if pynotify.init("Rally"):
+        return True
+      else:
+        return False
+    except:
+      return False
 
   def start(self):
     self.stdscr = curses.initscr()
@@ -58,6 +74,8 @@ class RallyCursesUI(object):
   def get_message_text(self, message):
     return message.sender + ': ' + message.content
 
+
+
   @synchronized("ui_lock")
   def render_chats(self, message_pile, acked_dict):
     height,width = self.old_chats.getmaxyx()
@@ -81,10 +99,8 @@ class RallyCursesUI(object):
           color = curses.COLOR_BLACK if message_pile[message_index].get_hash() in acked_dict else curses.COLOR_RED
           extra = '' if message_pile[message_index].get_hash() in acked_dict else ' *unreceived*'
           self.old_chats.addstr(cur_y, 0, self.get_message_text(message_pile[message_index]) + extra, color)
-          cur_y -= (lines_required-1)
         message_index -= 1
 
-#    self.new_msg_panel.addstr(1,1,'')
     self.old_chats.refresh()
     self.new_msg_panel.refresh()
 
