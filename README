@@ -1,5 +1,16 @@
-Usage:
-python ui.py
+Rally is basic reliable chat implementation written in python.  Its mission is to provide reliable communication on
+unreliable connections.  It uses a curses based ui and works on 
+unix / linux.  It features extensive use of fancy python decorators, just for fun.
 
-A basic reliable chat implementation written in python.  Extensive use
-of fancy decorators just for fun.
+Usage:
+as a client:
+python ui.py [server] [port]
+
+By default it will hit my instance of the server which may or may not be up [but probably is at any given time]
+
+To start your own server:
+
+python server.py
+
+
+By default, it operates on port 5959, which, of course, can be changed.
