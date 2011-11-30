@@ -54,7 +54,11 @@ class ReliableChatClientSocket(object):
     print 'implement me!'
 
   def send_message(self, message):
-    self.sock.send(message.serialize())
+    try:
+      self.sock.send(message.serialize())
+    except Exception:
+      #we got disconnected or message serialiation failed
+      self.disconnected()
 
   def disconnected(self):
     """Override me!"""
@@ -63,6 +67,7 @@ class ReliableChatClientSocket(object):
 class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
   def __init__(self, port):
     self.allow_reuse_address = True
+    self.daemon_threads = True
     SocketServer.TCPServer.__init__(self,
                                     (SERVER_LOC, port),
                                     ReliableChatRequestHandler)
@@ -80,7 +85,13 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
 
   @synchronized("client_lock")
   def send_msg(self, client_ptr, message):
-    client_ptr.write(message.serialize())
+    try:
+      client_ptr.write(message.serialize())
+    except Exception as ex:
+      #this client died
+      self.client_ptrs.remove(client_ptr)
+      log('client died')
+      log(ex)
 
   def incoming_message(self, msg, client_ptr):
     print msg
@@ -90,8 +101,11 @@ class ReliableChatRequestHandler(SocketServer.StreamRequestHandler):
   def handle(self):
     self.buf = ''
     while 1:
-      print 'about to read'
-      chunk = self.connection.recv(1024)
+      try:
+        chunk = self.connection.recv(1024)
+      except Exception as ex:
+        log(ex)
+        break
       if not chunk:
         break
       else:

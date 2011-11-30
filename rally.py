@@ -29,7 +29,7 @@ class ReliableChatServer(ReliableChatServerSocket):
     self.all_msgs = {} #hashcode -> msg
   
   def incoming_message(self, message, client):
-    print 'incoming!', message
+    log(message)
     if message.is_ack():
       self.ack_received(message, client) 
     #TODO: hashing scheme to provide proof of no-missed-messages
@@ -53,12 +53,13 @@ class ReliableChatServer(ReliableChatServerSocket):
           self.send_to_client(ptr, message)
           self.sent_msgs[message.get_hash()].append(ptr)
  
-  @retry_with_backoff("msg_acked")
+#  @retry_with_backoff("msg_acked")
   def send_to_client(self, client_ptr, message):
     self.send_msg(client_ptr, message)
   
   def ack_received(self, message, client):
     print 'got an ack!', message.content
+    print 'num threads: ', threading.active_count()
     if not message.content in self.msg_acks: #the content of an ack is the hash
       self.msg_acks[message.content] = []
     self.msg_acks[message.content].append(client)
@@ -144,14 +145,12 @@ class ReliableChatClient(ReliableChatClientSocket):
   
   @retry_with_backoff("is_connected")
   def try_connect(self):
-    #try:
+    try:
       self.connect()
       self.send_new_connection_message()
       self.connected = True
       return
-    #except Exception as e: 
-      print 'tried to connect, but failed'
-      print e
+    except Exception as e: 
       self.connected = False
       return
 
