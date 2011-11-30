@@ -72,7 +72,7 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
                                     (SERVER_LOC, port),
                                     ReliableChatRequestHandler)
     self.client_ptrs = []
-    self.client_lock = threading.Lock()
+    self.client_lock = threading.RLock()
 
   @synchronized("client_lock")
   def add_client(self, write_ptr):
