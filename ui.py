@@ -64,15 +64,18 @@ class RallyCursesUI(object):
   def add_context_str(self):
     self.new_msg_panel.box()
 
-  def total_lines_required(self, messages, width):
-    return sum([self.lines_required(m, width) for m in messages])
+  def total_lines_required(self, messages, acked_dict, width):
+    return sum([self.lines_required(m, m.get_hash() in acked_dict, width) for m in messages])
 
-  def lines_required(self, message, width):
-    return int(math.ceil((len(self.get_message_text(message)) +
+  def lines_required(self, message, acked, width):
+    return int(math.ceil((len(self.get_message_text(message, acked)) +
                           message.content.count('\n'))/float(width)))
 
-  def get_message_text(self, message):
-    return message.sender + ': ' + message.content
+  def get_message_text(self, message, acked):
+    if acked: 
+      return message.sender + ': ' + message.content
+    else:
+      return message.sender + ': ' + message.content + ' *unreceived'
 
 
 
@@ -80,25 +83,23 @@ class RallyCursesUI(object):
   def render_chats(self, message_pile, acked_dict):
     height,width = self.old_chats.getmaxyx()
     self.old_chats.erase()
-    if self.total_lines_required(message_pile, width) < height: 
+    if self.total_lines_required(message_pile, acked_dict, width) < height: 
       #we can render top down
       for message in message_pile:
-        color = curses.COLOR_BLACK if message.get_hash() in acked_dict else curses.COLOR_RED
-        #TODO: this could lead to overflow
-        extra = '' if message.get_hash() in acked_dict else ' *unreceived*'
-        
-        self.old_chats.addstr(self.get_message_text(message) + extra + '\n', color)
+        acked = message.get_hash() in acked_dict
+        color = curses.COLOR_BLACK if acked else curses.COLOR_RED
+        self.old_chats.addstr(self.get_message_text(message, acked) + '\n', color)
     else:
       #we have to render bottom up
       cur_y = height
       message_index = -1
       while cur_y > 0 and message_index * -1 < len(message_pile):
-        lines_required = self.lines_required(message_pile[message_index], width)
+        msg = message_pile[message_index]
+        lines_required = self.lines_required(msg, msg.get_hash() in acked_dict,  width)
         cur_y -= lines_required
         if cur_y >= 0:
-          color = curses.COLOR_BLACK if message_pile[message_index].get_hash() in acked_dict else curses.COLOR_RED
-          extra = '' if message_pile[message_index].get_hash() in acked_dict else ' *unreceived*'
-          self.old_chats.addstr(cur_y, 0, self.get_message_text(message_pile[message_index]) + extra, color)
+          color = curses.COLOR_BLACK if msg.get_hash() in acked_dict else curses.COLOR_RED
+          self.old_chats.addstr(cur_y, 0, self.get_message_text(msg, msg.get_hash() in acked_dict), color)
         message_index -= 1
 
     self.old_chats.refresh()
