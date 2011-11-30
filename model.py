@@ -6,6 +6,8 @@ from util import *
 CONTENT_MESSAGE = 0
 ACK_MESSAGE = 1
 NEW_CONNECTION = 2
+
+PICKLE_TYPE = 2
 class Message(object):
  
   
@@ -22,7 +24,7 @@ class Message(object):
     return str(abs(hash(str(self.sender) + str(self.content) + str(self.timestamp))))
   
   def serialize(self):
-    msg = pickle.dumps(self, 2)
+    msg = pickle.dumps(self, PICKLE_TYPE)
     total_len = len(msg)
     return str(total_len) + '!' + msg
   
@@ -49,7 +51,13 @@ class Message(object):
 
   @staticmethod
   def deserialize(data):
-    #check length:
+    """
+    deserialize takes a list containing binary data.  If it finds a message, it will return it, along with 
+    any leftovers in the data stream.  If it doesn't find a message, it will return None, along with leftovers in the
+    data stream.
+    """
+    #TODO: for efficiency, we should use an index based system for
+    #handling left over data to avoid copying messages when we don't have to.
     data = ''.join(data) #strify for convienience
     delim = data.index('!')
     expected_len = int(data[0:delim])
