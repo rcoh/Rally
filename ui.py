@@ -6,6 +6,7 @@ import util
 from rally import *
 from model import Message
 import threading
+import notify
 chat_height = 3
 
 class RallyClient(object):
@@ -15,7 +16,9 @@ class RallyClient(object):
     self.ui = RallyCursesUI()
     self.ui.user_message = self.user_message #late-binding
     self.client.data_changed = self.ui.render_chats
+    self.client.new_content_message = self.ui.new_content_message
     self.client.try_connect()
+    notify.init('Rally')
     try:
       self.ui.start()
     finally:
@@ -30,22 +33,9 @@ class RallyCursesUI(object):
   def __init__(self):
 
     self.ui_lock = threading.RLock()
-    self.can_notify = self.setup_notify()
 
   def notify(self, title, msg):
-    if self.can_notify:
-      n = pynotify.Notification(title, msg)
-      n.show()
-
-  def setup_notify(self):
-    try:
-      import pynotify
-      if pynotify.init("Rally"):
-        return True
-      else:
-        return False
-    except:
-      return False
+    notify.send(title, msg)
 
   def start(self):
     self.stdscr = curses.initscr()
@@ -77,8 +67,6 @@ class RallyCursesUI(object):
     else:
       return message.sender + ': ' + message.content + ' *unreceived'
 
-
-
   @synchronized("ui_lock")
   def render_chats(self, message_pile, acked_dict):
     height,width = self.old_chats.getmaxyx()
@@ -109,12 +97,16 @@ class RallyCursesUI(object):
     """To be overriden"""
     raise NotImplementedError
 
+  def new_content_message(self, message):
+    self.notify(message.sender + ' says:', message.content)
+
   def read_next_message(self):
     msg = self.new_msg_panel.getstr(1,1)
     self.ui_lock.acquire()
     self.user_message(msg)
     self.new_msg_panel.addstr(1,1, '')
     self.new_msg_panel.clrtoeol()
+    self.add_context_str()
     self.new_msg_panel.refresh()
     self.ui_lock.release()
 

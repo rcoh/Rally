@@ -94,6 +94,7 @@ class ReliableChatClient(ReliableChatClientSocket):
 
   @synchronized("queue_lock")
   def rcv_message(self, message):
+    #we connect, then they send us a message with all old messages as payload
     if message.is_new_connect():
       missed = pickle.loads(message.content)
       for missed_message in missed:
@@ -105,7 +106,7 @@ class ReliableChatClient(ReliableChatClientSocket):
 
     elif not (message.timestamp, message) in self.msg_stack:
       self.msg_stack.append((message.timestamp, message))
-      self.got_new_message(message)
+      self.new_content_message(message)
     else:
       pass
       #self.msg_stack.append((message.timestamp, message))
@@ -132,13 +133,13 @@ class ReliableChatClient(ReliableChatClientSocket):
   def message_acked(self, message):
     return message.get_hash() in self.dead_pile
 
-  def got_new_message(self, message):
-    pass
-  
   def data_changed_ptr(self):
     self.maintain_stack()
     msgs = [m for t,m in self.msg_stack]
     return self.data_changed(msgs, self.dead_pile)
+
+  def new_content_message(self, message):
+    print 'override'
 
   def data_changed(self, messages, acked_dict):
     print 'override!'
