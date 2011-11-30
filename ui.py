@@ -17,10 +17,10 @@ class RallyClient(object):
     self.ui.user_message = self.user_message #late-binding
     self.client.data_changed = self.ui.render_chats
     self.client.new_content_message = self.ui.new_content_message
-    self.client.try_connect()
-    notify.init('Rally')
     try:
       self.ui.start()
+      notify.init('Rally')
+      self.client.try_connect()
     finally:
       curses.endwin()
 
@@ -40,6 +40,7 @@ class RallyCursesUI(object):
   def start(self):
     self.stdscr = curses.initscr()
     curses.start_color()
+    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
     curses.cbreak()
     curses.echo()
     self.maxyx = self.stdscr.getmaxyx()
@@ -75,7 +76,7 @@ class RallyCursesUI(object):
       #we can render top down
       for message in message_pile:
         acked = message.get_hash() in acked_dict
-        color = curses.COLOR_BLACK if acked else curses.COLOR_RED
+        color = curses.COLOR_BLACK if acked else curses.color_pair(1) 
         self.old_chats.addstr(self.get_message_text(message, acked) + '\n', color)
     else:
       #we have to render bottom up
@@ -86,7 +87,7 @@ class RallyCursesUI(object):
         lines_required = self.lines_required(msg, msg.get_hash() in acked_dict,  width)
         cur_y -= lines_required
         if cur_y >= 0:
-          color = curses.COLOR_BLACK if msg.get_hash() in acked_dict else curses.COLOR_RED
+          color = curses.COLOR_BLACK if acked else curses.color_pair(1) 
           self.old_chats.addstr(cur_y, 0, self.get_message_text(msg, msg.get_hash() in acked_dict), color)
         message_index -= 1
 
