@@ -1,6 +1,7 @@
 import pickle
 import time
 import curses
+import hashlib
 from util import *
 
 CONTENT_MESSAGE = 0
@@ -21,7 +22,7 @@ class Message(object):
     self.type = msg_type
 
   def get_hash(self):
-    return str(abs(hash(str(self.sender) + str(self.content) + str(self.timestamp))))
+    return hashlib.md5(str(self.sender) + str(self.content) + str(self.timestamp)).hexdigest()
   
   def serialize(self):
     msg = pickle.dumps(self, PICKLE_TYPE)

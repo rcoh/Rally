@@ -25,3 +25,6 @@ m1d, left = Message.deserialize(total)
 m2d, more = Message.deserialize(left)
 assert m == m1d
 assert m2d == m2
+
+m = Message('blah', 'blah', 5)
+print m.get_hash()
