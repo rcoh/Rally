@@ -73,5 +73,6 @@ def async(f):
   return wrap
 
 def log(output):
-  f = file('log', 'a')
-  f.write(str(output) + '\n')
+  pass
+  #f = file('log', 'a')
+  #f.write(str(output) + '\n')

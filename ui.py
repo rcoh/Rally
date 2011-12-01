@@ -18,9 +18,9 @@ class RallyClient(object):
     self.client.data_changed = self.ui.render_chats
     self.client.new_content_message = self.ui.new_content_message
     try:
+      self.client.try_connect()
       self.ui.start()
       notify.init('Rally')
-      self.client.try_connect()
     finally:
       curses.endwin()
 
@@ -33,6 +33,7 @@ class RallyCursesUI(object):
   def __init__(self):
 
     self.ui_lock = threading.RLock()
+    self.ui_lock.acquire()
 
   def notify(self, title, msg):
     notify.send(title, msg)
@@ -49,6 +50,7 @@ class RallyCursesUI(object):
     self.old_chats = curses.newwin(my-chat_height, mx, 0, 0)
     self.add_context_str()
     self.old_chats.refresh()
+    self.ui_lock.release()
     while 1:
       self.read_next_message()
 
@@ -87,7 +89,7 @@ class RallyCursesUI(object):
         lines_required = self.lines_required(msg, msg.get_hash() in acked_dict,  width)
         cur_y -= lines_required
         if cur_y >= 0:
-          color = curses.COLOR_BLACK if acked else curses.color_pair(1) 
+          color = curses.COLOR_BLACK if msg.get_hash() in acked_dict else curses.color_pair(1) 
           self.old_chats.addstr(cur_y, 0, self.get_message_text(msg, msg.get_hash() in acked_dict), color)
         message_index -= 1
 
