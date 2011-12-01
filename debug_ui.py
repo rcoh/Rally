@@ -10,8 +10,9 @@ class DebugRallyClient(object):
     self.client = ReliableChatClient(self.user_name, (server, port))
     self.client.data_changed = self.new_data
     self.client.try_connect()
+    print 'connected'
     while 1:
-      self.user_message(raw_input(''))
+      self.user_message(raw_input('what?'))
 
   def new_data(self, msgs, acks):
     pass

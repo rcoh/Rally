@@ -82,6 +82,7 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
   @synchronized("client_lock")
   def remove_client(self, write_ptr):
     self.client_ptrs.remove(write_ptr)
+    self.client_disconnected(write_ptr)
 
   @synchronized("client_lock")
   def send_msg(self, client_ptr, message):
@@ -95,6 +96,10 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
 
   def incoming_message(self, msg, client_ptr):
     print msg
+
+  def client_disconnected(self, client_ptr):
+    """To be overriden."""
+    pass
   
 
 class ReliableChatRequestHandler(SocketServer.StreamRequestHandler):

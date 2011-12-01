@@ -19,8 +19,8 @@ class RallyClient(object):
     self.client.new_content_message = self.ui.new_content_message
     try:
       self.client.try_connect()
-      self.ui.start()
       notify.init('Rally')
+      self.ui.start()
     finally:
       curses.endwin()
 
