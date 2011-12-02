@@ -1,5 +1,5 @@
-from util import *
-from rally import *
+from util import retry_with_backoff
+from model import Message
 class retry_tester(object):
   def __init__(self):
     self.valid = 4

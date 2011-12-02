@@ -1,31 +1,29 @@
 import threading
 import pickle
-import time
-from threading import Timer
-import SocketServer
 from threading import Thread
-from socket import *
-from network import *
-from model import *
+from network import ReliableChatServerSocket, ReliableChatClientSocket 
+from model import Message
+from util import synchronized, retry_with_backoff, log
 """General principle: 
   Client sends message -> Server replies message to all clients
-  Client sends hash back as ack to server.
+  Client sends message hash back as ack to server.
 
-  Server keeps queue of messages to be distributed.  Messages are removed from queue when all
-  clients have acked.
-  Messages on the queue are periodically resent to unacked recipients.
-    Consume all messages on the queue, resending 
+  Server will attempt to reliably distribute messages to clients, with 
+  exponential backoff retries.
 
-  Client pushes sent messages onto Queue.  When it recieves an ACK, remove message from queue.
-  "*" message to indicate receipt.
+  Server will send clients a compound message containing messages they 
+  missed when they rejoin the server.
+  
+  Clients will also use exponential backoff when sending messages to the 
+  server.  Clients will continue attempting to send until they recieve an ack.
 """
 
 class ReliableChatServer(ReliableChatServerSocket):
   
   def __init__(self, port):
     ReliableChatServerSocket.__init__(self, port)
-    self.msg_acks = {}
-    self.sent_msgs = {}
+    self.msg_acks = {} #hashcode -> [clients]
+    self.sent_msgs = {} #who has been sent what?
     self.all_msgs = {} #hashcode -> msg
     self.identity = {} #socket_ptr -> name
   
@@ -61,11 +59,13 @@ class ReliableChatServer(ReliableChatServerSocket):
 
   def client_disconnected(self, client):
     if client in self.identity:
-      self.reliable_distribute(Message('Server', self.identity[client] + ' has disconnected', 0))
+      self.reliable_distribute(
+        Message('Server', self.identity[client] + ' has disconnected', 0))
 
   def client_connected(self, client):
     if client in self.identity:
-      self.reliable_distribute(Message('Server', self.identity[client] + ' has connected', 0))
+      self.reliable_distribute(
+        Message('Server', self.identity[client] + ' has connected', 0))
 
   def update_identity(self, message, client):
     print 'we know that ' + str(client) + ' is ' + message.sender
@@ -92,18 +92,15 @@ class ReliableChatClient(ReliableChatClientSocket):
   def __init__(self, user_name, server_loc):
     super(ReliableChatClient, self).__init__(*server_loc)
     self.user_name = user_name
-    self.msg_stack = []
-    self.live_pile = {}
-    self.dead_pile = {}
+    self.msg_stack = [] #(timestmap, msg), kept sorted
+    self.acked_messages = {}
     self.queue_lock = threading.Lock() 
     self.connected = False
-    self.ready_for_messages = False
 
   @retry_with_backoff("message_acked")
   def say_require_ack(self, message):
     if not (message.timestamp, message) in self.msg_stack:
       self.msg_stack.append((message.timestamp, message))
-      self.live_pile[message.get_hash()] = message
 
     self.say(message)
     self.data_changed_ptr()
@@ -119,21 +116,15 @@ class ReliableChatClient(ReliableChatClientSocket):
       for missed_message in missed:
         if not (missed_message.timestamp, missed_message) in self.msg_stack:
           self.msg_stack.append((missed_message.timestamp, missed_message))
-          self.dead_pile[missed_message.get_hash()] = message
+          self.acked_messages[missed_message.get_hash()] = message
       self.say(Message.ack_for(message))
       self.data_changed_ptr()
-
+  
     elif not (message.timestamp, message) in self.msg_stack:
       self.msg_stack.append((message.timestamp, message))
       self.new_content_message(message)
-    else:
-      pass
-      #self.msg_stack.append((message.timestamp, message))
 
-    if message.get_hash() in self.live_pile:
-      del self.live_pile[message.get_hash()]
-    
-    self.dead_pile[message.get_hash()] = message
+    self.acked_messages[message.get_hash()] = message
     self.say(Message.ack_for(message))
     self.data_changed_ptr()
   
@@ -147,37 +138,34 @@ class ReliableChatClient(ReliableChatClientSocket):
       last_received = -1
 
     self.say(Message(self.user_name, last_received, 2)) #TODO: use constant
-    self.ready_for_messages = True
 
   def message_acked(self, message):
-    return message.get_hash() in self.dead_pile
+    return message.get_hash() in self.acked_messages
 
   def data_changed_ptr(self):
     self.maintain_stack()
-    msgs = [m for t,m in self.msg_stack]
-    return self.data_changed(msgs, self.dead_pile)
+    messages = [message for timestamp, message in self.msg_stack]
+    return self.data_changed(messages, self.acked_messages)
 
   def new_content_message(self, message):
-    print 'override'
+    """To be overriden"""
+    pass
 
   def data_changed(self, messages, acked_dict):
-    print 'override!'
-  
-  @retry_with_backoff("is_connected") #TODO: bug -- we can get in an infinite connect / disconnect loop
+    """To be overriden"""
+    pass
+
+  #TODO: bug -- we can get in an infinite connect / disconnect loop
+  @retry_with_backoff("is_connected") 
   def try_connect(self):
     try:
       self.connect()
       self.send_new_connection_message()
       self.connected = True
-      #print 'connect success'
-      return
     except Exception as e: 
       self.connected = False
-      return
-
 
   def is_connected(self):
-    #print 'retrying'
     return self.connected
 
   def disconnected(self):

@@ -26,7 +26,8 @@ class retry_with_backoff:
   Function decorator that will retry the decorated function with exponential backoff
   until success_func_name returns true.
   """
-  def __init__(self, success_func_name, backoff_rate=1.5, checkback_time=3, max_retries=10):
+  def __init__(self, success_func_name, backoff_rate=1.5, checkback_time=3, 
+               max_retries=10):
     self.success_func_name = success_func_name
     self.backoff_rate = backoff_rate
     self.checkback_time = checkback_time
@@ -58,18 +59,18 @@ class retry_with_backoff:
         pass 
     return wrap
 
-def try_in(t, f, args=[], kw={}):
-  t = Timer(t, f, args, kw)
+def try_in(delay, function, args=[], kw={}):
+  t = Timer(delay, function, args, kw)
   t.daemon = True
   t.start()
 
-def async(f):
+def async(function):
   def wrap(self, *args, **kw):
     if args:
       argtup = (self, args)
     else:
       argtup = (self,)
-    thread.start_new_thread(f, argtup, kw)
+    thread.start_new_thread(function, argtup, kw)
   return wrap
 
 def log(output):

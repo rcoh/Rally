@@ -1,8 +1,6 @@
 import sys
-import util
-from rally import *
+from rally import ReliableChatClient 
 from model import Message
-import threading
 
 class DebugRallyClient(object):
   def __init__(self, server, port):

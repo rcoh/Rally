@@ -2,8 +2,8 @@ import curses
 import sys
 import math
 from curses import wrapper
-import util
-from rally import *
+from util import synchronized
+from rally import ReliableChatClient 
 from model import Message
 import threading
 import notify
@@ -14,9 +14,11 @@ class RallyClient(object):
     self.user_name = raw_input('user name?')
     self.client = ReliableChatClient(self.user_name, (server, port))
     self.ui = RallyCursesUI()
-    self.ui.user_message = self.user_message #late-binding
+    #bind methods:
+    self.ui.user_message = self.user_message 
     self.client.data_changed = self.ui.render_chats
     self.client.new_content_message = self.ui.new_content_message
+    #start-er-up:
     try:
       self.client.try_connect()
       notify.init('Rally')
@@ -26,12 +28,10 @@ class RallyClient(object):
 
   def user_message(self, message):
     self.client.say_require_ack(Message(self.user_name, message, 0))
-  
 
 class RallyCursesUI(object):
 
   def __init__(self):
-
     self.ui_lock = threading.RLock()
     self.ui_lock.acquire()
 
@@ -48,13 +48,13 @@ class RallyCursesUI(object):
     my, mx = self.maxyx
     self.new_msg_panel = curses.newwin(chat_height, mx, my-chat_height, 0)
     self.old_chats = curses.newwin(my-chat_height, mx, 0, 0)
-    self.add_context_str()
+    self.draw_input_box()
     self.old_chats.refresh()
     self.ui_lock.release()
     while 1:
       self.read_next_message()
 
-  def add_context_str(self):
+  def draw_input_box(self):
     self.new_msg_panel.box()
 
   def total_lines_required(self, messages, acked_dict, width):
@@ -65,14 +65,15 @@ class RallyCursesUI(object):
                           message.content.count('\n'))/float(width)))
 
   def get_message_text(self, message, acked):
+    base = message.sender + ': ' + message.content
     if acked: 
-      return message.sender + ': ' + message.content
+      return base
     else:
-      return message.sender + ': ' + message.content + ' *unreceived'
+      return base + ' *unreceived'
 
   @synchronized("ui_lock")
   def render_chats(self, message_pile, acked_dict):
-    height,width = self.old_chats.getmaxyx()
+    height, width = self.old_chats.getmaxyx()
     self.old_chats.erase()
     if self.total_lines_required(message_pile, acked_dict, width) < height: 
       #we can render top down
@@ -104,14 +105,13 @@ class RallyCursesUI(object):
     self.notify(message.sender + ' says:', message.content)
 
   def read_next_message(self):
-    msg = self.new_msg_panel.getstr(1,1)
-    self.ui_lock.acquire()
-    self.user_message(msg)
-    self.new_msg_panel.addstr(1,1, '')
-    self.new_msg_panel.clrtoeol()
-    self.add_context_str()
-    self.new_msg_panel.refresh()
-    self.ui_lock.release()
+    msg = self.new_msg_panel.getstr(1, 1)
+    with self.ui_lock:
+      self.user_message(msg)
+      self.new_msg_panel.addstr(1, 1, '')
+      self.new_msg_panel.clrtoeol()
+      self.draw_input_box()
+      self.new_msg_panel.refresh()
 
 if __name__ == "__main__":
   server = 'raptor-lights.mit.edu'

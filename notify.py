@@ -19,113 +19,107 @@ APP_NAME = 'notify.py'
 
 # pynotify (linux)
 try:
-    import pynotify
-    import gobject
-    gobject.threads_init()
+  import pynotify
+  import gobject
+  gobject.threads_init()
 except ImportError:
-    pynotify = None
+  pynotify = None
 
 # Growl (Mac Os X)
 if pynotify:
-    Growl = None
+  Growl = None
 else:
-    try:
-        import Growl
-    except ImportError:
-        Growl = None
+  try:
+    import Growl
+  except ImportError:
+    Growl = None
 
 # Toasterbox (Windows)
 if pynotify or Growl:
-    TB = None
+  TB = None
 else:
-    try:
-        import wx
-        import other.pyWx.toasterbox as TB
-    except ImportError:
-        TB = None
-
+  try:
+    import wx
+    import other.pyWx.toasterbox as TB
+  except ImportError:
+    TB = None
 
 def register(app_name):
-    global APP_NAME
-    APP_NAME = app_name
-
+  global APP_NAME
+  APP_NAME = app_name
 
 def init(app_name, icon=None):
-    register(app_name)
+  register(app_name)
 
 if pynotify:
+  def init(app_name, icon=None):
+    register(app_name)
+    pynotify.init(app_name)
 
-    def init(app_name, icon=None):
-        register(app_name)
-        pynotify.init(app_name)
-
-    def send(title, message, icon='gtk-dialog-info', wxicon=None,
-            urgency=None, timeout=1000):
-        n = pynotify.Notification(title, message, icon)
-        if urgency:
-            n.set_urgency(getattr(pynotify,
-                'URGENCY_%s' % urgency.upper()))
-        if timeout:
-            n.set_timeout(timeout)
-        n.show()
+  def send(title, message, icon='gtk-dialog-info', wxicon=None,
+      urgency=None, timeout=1000):
+    n = pynotify.Notification(title, message, icon)
+    if urgency:
+      n.set_urgency(getattr(pynotify,
+        'URGENCY_%s' % urgency.upper()))
+    if timeout:
+      n.set_timeout(timeout)
+    n.show()
 
 elif Growl:
+  def init(app_name, icon=None):
+    """Create a growl notifier with appropriate icon if specified.
+    The notification classes default to [APP_NAME]. The user can
+    enable/disable notifications based on this class name."""
+    global growl
+    register(app_name)
+    if icon is None:
+      icon = {}
+    else:
+      icon = {'applicationIcon': Growl.Image.imageFromPath(icon)}
+    growl = Growl.GrowlNotifier(APP_NAME, [APP_NAME], **icon)
 
-    def init(app_name, icon=None):
-        """Create a growl notifier with appropriate icon if specified.
-        The notification classes default to [APP_NAME]. The user can
-        enable/disable notifications based on this class name."""
-        global growl
-        register(app_name)
-        if icon is None:
-            icon = {}
-        else:
-            icon = {'applicationIcon': Growl.Image.imageFromPath(icon)}
-        growl = Growl.GrowlNotifier(APP_NAME, [APP_NAME], **icon)
-
-    def send(title, message, icon='gtk-dialog-info', wxicon=None,
-            urgency=None, timeout=None):
-        global growl
-        growl.notify(APP_NAME, title, message)
+  def send(title, message, icon='gtk-dialog-info', wxicon=None,
+      urgency=None, timeout=None):
+    global growl
+    growl.notify(APP_NAME, title, message)
 
 elif TB:
+  def send(title, message, icon='gtk-dialog-info',
+      wxicon=None, urgency=None, timeout=None):
+    if wxicon == None:
+      wxicon = wx.ArtProvider_GetBitmap(wx.ART_INFORMATION,
+        wx.ART_OTHER, (48, 48))
+    tb = TB.ToasterBox(wx.GetApp().GetTopWindow(),
+      TB.TB_COMPLEX, TB.DEFAULT_TB_STYLE, TB.TB_ONTIME)
+    tb.SetPopupSize((300, 80))
+    tb.SetPopupPauseTime(2000)
+    tb.SetPopupScrollSpeed(8)
+    tb.SetPopupPositionByInt(3)
 
-    def send(title, message, icon='gtk-dialog-info',
-            wxicon=None, urgency=None, timeout=None):
-        if wxicon == None:
-            wxicon = wx.ArtProvider_GetBitmap(wx.ART_INFORMATION,
-                wx.ART_OTHER, (48, 48))
-        tb = TB.ToasterBox(wx.GetApp().GetTopWindow(),
-            TB.TB_COMPLEX, TB.DEFAULT_TB_STYLE, TB.TB_ONTIME)
-        tb.SetPopupSize((300, 80))
-        tb.SetPopupPauseTime(2000)
-        tb.SetPopupScrollSpeed(8)
-        tb.SetPopupPositionByInt(3)
+    #wx controls
+    tbpanel = tb.GetToasterBoxWindow()
+    panel = wx.Panel(tbpanel, -1)
+    panel.SetBackgroundColour(wx.WHITE)
+    wxicon = wx.StaticBitmap(panel, -1, wxicon)
+    title = wx.StaticText(panel, -1, title)
+    message = wx.StaticText(panel, -1, message)
 
-        #wx controls
-        tbpanel = tb.GetToasterBoxWindow()
-        panel = wx.Panel(tbpanel, -1)
-        panel.SetBackgroundColour(wx.WHITE)
-        wxicon = wx.StaticBitmap(panel, -1, wxicon)
-        title = wx.StaticText(panel, -1, title)
-        message = wx.StaticText(panel, -1, message)
+    # wx layout controls
+    ver_sizer = wx.BoxSizer(wx.VERTICAL)
+    ver_sizer.Add(title, 0, wx.ALL, 4)
+    ver_sizer.Add(message, 0, wx.ALL, 4)
 
-        # wx layout controls
-        ver_sizer = wx.BoxSizer(wx.VERTICAL)
-        ver_sizer.Add(title, 0, wx.ALL, 4)
-        ver_sizer.Add(message, 0, wx.ALL, 4)
+    hor_sizer = wx.BoxSizer(wx.HORIZONTAL)
+    hor_sizer.Add(wxicon, 0, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL \
+      | wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 4)
+    hor_sizer.Add(ver_sizer, 1, wx.EXPAND)
+    hor_sizer.Layout()
+    panel.SetSizer(hor_sizer)
 
-        hor_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        hor_sizer.Add(wxicon, 0, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL \
-            | wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 4)
-        hor_sizer.Add(ver_sizer, 1, wx.EXPAND)
-        hor_sizer.Layout()
-        panel.SetSizer(hor_sizer)
-
-        tb.AddPanel(panel)
-        tb.Play()
+    tb.AddPanel(panel)
+    tb.Play()
 
 else:
-
-    def send(*args, **keyw):
-        pass
+  def send(*args, **keyw):
+    pass

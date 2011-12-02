@@ -1,9 +1,8 @@
 import socket
 import SocketServer
-import thread
 import threading
-from util import *
-from model import *
+from util import async, synchronized, log
+from model import Message 
 SERVER_PORT = 5959
 SERVER_LOC = '' 
 class ReliableChatClientSocket(object):
@@ -25,16 +24,13 @@ class ReliableChatClientSocket(object):
   
   @async 
   def read(self):
-    #try:
-      data = self.sock.recv(1024)
-      if not data:
-        self.disconnected()
-      else:
-        self.buffer_new_data(data)
-        self.read()
-    #except Exception as ex:
-    #  print ex
-#  @synchronized("b_lock")
+    data = self.sock.recv(1024)
+    if not data:
+      self.disconnected()
+    else:
+      self.buffer_new_data(data)
+      self.read()
+
   def buffer_new_data(self, data):
     self.buffer += data
     while self.buffer:
@@ -50,21 +46,21 @@ class ReliableChatClientSocket(object):
     self.sock.close()
     
   def rcv_message(self, message):
-    print message
-    print 'implement me!'
+    """To be overriden.  Called by parent when a new message is recieved"""
+    pass
 
   def send_message(self, message):
     try:
       self.sock.send(message.serialize())
     except Exception:
-      #we got disconnected or message serialiation failed
+      #we got disconnected or message serialization failed
       self.disconnected()
 
   def disconnected(self):
-    """Override me!"""
-    print 'disconnected'
+    """Called when the client is disconnected from the server"""
     
-class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class ReliableChatServerSocket(SocketServer.ThreadingMixIn, 
+                               SocketServer.TCPServer):
   def __init__(self, port):
     self.allow_reuse_address = True
     self.daemon_threads = True
@@ -76,7 +72,6 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
 
   @synchronized("client_lock")
   def add_client(self, write_ptr):
-    print 'adding client'
     self.client_ptrs.append(write_ptr)
 
   @synchronized("client_lock")
@@ -95,13 +90,13 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn, SocketServer.TCPServ
       log(ex)
 
   def incoming_message(self, msg, client_ptr):
-    print msg
+    """To be overriden."""
+    pass
 
   def client_disconnected(self, client_ptr):
     """To be overriden."""
     pass
   
-
 class ReliableChatRequestHandler(SocketServer.StreamRequestHandler):
   def handle(self):
     self.buf = ''
@@ -125,7 +120,6 @@ class ReliableChatRequestHandler(SocketServer.StreamRequestHandler):
         self.buf = leftover
 
   def setup(self):
-    print 'trying to setup'
     SocketServer.StreamRequestHandler.setup(self)
     self.server.add_client(self.wfile)
 

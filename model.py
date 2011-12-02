@@ -1,8 +1,7 @@
 import pickle
 import time
-import curses
 import hashlib
-from util import *
+from util import log 
 
 CONTENT_MESSAGE = 0
 ACK_MESSAGE = 1
@@ -10,7 +9,6 @@ NEW_CONNECTION = 2
 
 PICKLE_TYPE = 2
 class Message(object):
- 
   
   def __init__(self, sender, content, msg_type):
     """
@@ -22,23 +20,13 @@ class Message(object):
     self.type = msg_type
 
   def get_hash(self):
-    return hashlib.md5(str(self.sender) + str(self.content) + str(self.timestamp)).hexdigest()
+    return hashlib.md5(str(self.sender) + str(self.content) + 
+                       str(self.timestamp)).hexdigest()
   
   def serialize(self):
     msg = pickle.dumps(self, PICKLE_TYPE)
     total_len = len(msg)
     return str(total_len) + '!' + msg
-  
-  def __repr__(self):
-    return "Sender: %s Content:%s Timestamp:%s" % (self.sender, 
-                                                     self.content, self.timestamp)
-
-  def __eq__(self, other):
-    return self.sender == other.sender and self.content == other.content and \
-      self.timestamp == other.timestamp
-
-  def __ne__(self, other):
-    return not self.__eq__(other)
   
   def is_ack(self):
     return self.type == ACK_MESSAGE
@@ -53,8 +41,9 @@ class Message(object):
   @staticmethod
   def deserialize(data):
     """
-    deserialize takes a list containing binary data.  If it finds a message, it will return it, along with 
-    any leftovers in the data stream.  If it doesn't find a message, it will return None, along with leftovers in the
+    deserialize takes a list containing binary data.  If it finds a message, 
+    it will return it, along with any leftovers in the data stream.  
+    If it doesn't find a message, it will return None, along with leftovers in the
     data stream.
     """
     #TODO: for efficiency, we should use an index based system for
@@ -76,3 +65,15 @@ class Message(object):
       log('bad' + data)
       return Message('message parsing failed', 'failure', 0)
 
+  def __hash__(self):
+    return self.get_hash()
+
+  def __repr__(self):
+    return "Sender: %s Content:%s Timestamp:%s" % (self.sender, 
+                                                   self.content, self.timestamp)
+  def __eq__(self, other):
+    return self.sender == other.sender and self.content == other.content and \
+      self.timestamp == other.timestamp
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
