@@ -159,10 +159,10 @@ class RallyCursesUI(object):
         self.handle_resize()  
       else:
         chr_str = ''
-        if new_chr < 255:
+        if new_chr < 255 and new_chr > 0:
           chr_str = chr(new_chr)
         else:
-          chr_str = '?'
+          chr_str = str(new_chr) 
         chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
         xpos += 1
       window.addstr(1, 1, '')
