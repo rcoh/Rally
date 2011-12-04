@@ -1,8 +1,9 @@
 import curses
+import curses.ascii
 import sys
 import math
 from curses import wrapper
-from util import synchronized
+from util import synchronized, async
 from rally import ReliableChatClient 
 from model import Message
 import threading
@@ -23,8 +24,11 @@ class RallyClient(object):
       self.client.try_connect()
       notify.init('Rally')
       self.ui.start()
+      self.ui.read_msgs()
+    except KeyboardInterrupt:
+      pass
     finally:
-      curses.endwin()
+      self.ui.close()
 
   def user_message(self, message):
     self.client.say_require_ack(Message(self.user_name, message, 0))
@@ -34,6 +38,7 @@ class RallyCursesUI(object):
   def __init__(self):
     self.ui_lock = threading.RLock()
     self.ui_lock.acquire()
+    self.last_state = ([], {})
 
   def notify(self, title, msg):
     notify.send(title, msg)
@@ -51,8 +56,14 @@ class RallyCursesUI(object):
     self.draw_input_box()
     self.old_chats.refresh()
     self.ui_lock.release()
-    while 1:
+    self.die = False
+
+  def read_msgs(self):
+    while not self.die:
       self.read_next_message()
+
+  def close(self):
+    curses.endwin()
 
   def draw_input_box(self):
     self.new_msg_panel.box()
@@ -73,6 +84,7 @@ class RallyCursesUI(object):
 
   @synchronized("ui_lock")
   def render_chats(self, message_pile, acked_dict):
+    self.last_state = (message_pile, acked_dict)
     height, width = self.old_chats.getmaxyx()
     self.old_chats.erase()
     if self.total_lines_required(message_pile, acked_dict, width) < height: 
@@ -104,8 +116,63 @@ class RallyCursesUI(object):
   def new_content_message(self, message):
     self.notify(message.sender + ' says:', message.content)
 
+  def handle_resize(self):
+    self.close()
+    self.ui_lock.acquire()
+    self.start()
+    self.render_chats(*self.last_state)
+    self.read_msgs()
+
+  def get_str_scrolling(self, window, start):
+    """
+    reads a str.  it will call instance functions on scrolling etc.
+    """
+    chars = ''
+    xpos, ypos = start
+    window.keypad(1)
+    while 1:
+      curses.noecho()
+      new_chr = window.getch(ypos, xpos)
+      if new_chr == curses.KEY_DOWN:
+        pass
+      elif new_chr == curses.KEY_UP:
+        pass
+      elif new_chr == curses.KEY_LEFT:
+        if xpos > 1:
+          xpos -= 1 
+      elif new_chr == curses.KEY_RIGHT:
+        if xpos <= len(chars):
+          xpos += 1
+      elif new_chr == curses.KEY_BACKSPACE:
+        if xpos > 1:
+          xpos -= 1 
+        if xpos == len(chars): #deleting from end
+          chars = chars[:-1]
+        else:
+          chars = chars[:xpos] + chars[xpos+1:]
+      elif curses.ascii.isalnum(new_chr):
+        chars = chars[:xpos-1] + chr(new_chr) + chars[xpos-1:]
+        xpos += 1
+      elif new_chr == curses.ascii.LF:
+        break
+      elif new_chr == curses.KEY_RESIZE:
+        self.handle_resize()  
+      else:
+        chr_str = ''
+        if new_chr < 255:
+          chr_str = chr(new_chr)
+        else:
+          chr_str = '?'
+        chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
+        xpos += 1
+      window.addstr(1, 1, '')
+      window.addstr(start[0], start[1], chars + ' ')
+      window.refresh()
+    window.keypad(0)
+    return chars
+
   def read_next_message(self):
-    msg = self.new_msg_panel.getstr(1, 1)
+    msg = self.get_str_scrolling(self.new_msg_panel, (1,1))
     with self.ui_lock:
       self.user_message(msg)
       self.new_msg_panel.addstr(1, 1, '')

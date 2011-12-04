@@ -6,6 +6,7 @@ from util import log
 CONTENT_MESSAGE = 0
 ACK_MESSAGE = 1
 NEW_CONNECTION = 2
+VERIFY_STATE = 3
 
 PICKLE_TYPE = 2
 class Message(object):
@@ -64,6 +65,15 @@ class Message(object):
     except Exception as ex:
       log('bad' + data)
       return Message('message parsing failed', 'failure', 0)
+
+  def message_set_hash(message_set):
+    """
+    message_set is a list of messages.  The hash value is composed by sorting all the hashcodes
+    of the underlying messages and hashing them
+    """
+    hashes = [m.get_hash() for m in message_set]
+    hashes.sort()
+    return hashlib.md5(''.join(hashes))
 
   def __hash__(self):
     return self.get_hash()
