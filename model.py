@@ -49,7 +49,7 @@ class Message(object):
     """
     #TODO: for efficiency, we should use an index based system for
     #handling left over data to avoid copying messages when we don't have to.
-    data = ''.join(data) #strify for convienience
+    data = ''.join(data) #string for convenience
     delim = data.index('!')
     expected_len = int(data[0:delim])
     msg = data[delim+1:delim+1+expected_len]
