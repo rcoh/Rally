@@ -1,6 +1,7 @@
 import curses
 import curses.ascii
 import sys
+import time
 import math
 from curses import wrapper
 from util import synchronized, async
@@ -76,7 +77,8 @@ class RallyCursesUI(object):
                           message.content.count('\n'))/float(width)))
 
   def get_message_text(self, message, acked):
-    base = message.sender + ': ' + message.content
+    localtime = time.localtime(message.timestamp)
+    base = message.sender + '(' + time.strftime("%H:%M", localtime) + '): ' + message.content
     if acked: 
       return base
     else:
