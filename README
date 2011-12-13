@@ -1,3 +1,7 @@
+Copyright (C) 2011  Russell Cohen <rcoh@mit.edu>,
+                    Ally Gale <allygale@mit.edu>
+See the end of the file for license conditions.
+
 Rally is basic reliable chat implementation written in python.  Its mission is to provide reliable communication on
 unreliable connections.  It uses a curses based ui and works on 
 unix / linux.  It features extensive use of fancy python decorators, just for fun.
@@ -14,3 +18,19 @@ python server.py
 
 
 By default, it operates on port 5959, which, of course, can be changed.
+
+This file is part of Rally.
+
+Rally is free software: you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+Rally is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Rally.  If not, see
+<http://www.gnu.org/licenses/>.
