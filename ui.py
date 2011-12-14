@@ -46,30 +46,31 @@ class RallyCursesUI(object):
     notify.send(title, msg)
   
   def start(self):
-    self.stdscr = curses.initscr()
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
-    curses.cbreak()
-    curses.echo()
-    self.maxyx = self.stdscr.getmaxyx()
-    self.create_panels()
+    self.init_curses()
     self.ready.release()
     self.die = False
     self.main_loop()
 
+  def init_curses(self):
+    self.stdscr = curses.initscr()
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
+    curses.cbreak()
+    self.maxyx = self.stdscr.getmaxyx()
+    self.create_panels()
+
   def create_panels(self):
     my, mx = self.maxyx
     self.new_msg_panel = curses.newwin(chat_height, mx, my-chat_height, 0)
+    self.new_msg_panel.keypad(1)
     self.old_chats = curses.newwin(my-chat_height, mx, 0, 0)
     self.draw_input_box()
     self.old_chats.refresh()
 
 
   def main_loop(self):
-    #keep_going = True
-    #while keep_going:
     while 1:
-      keep_going = self.read_next_message()
+      self.read_next_message()
 
   def close(self):
     curses.nocbreak()
@@ -137,9 +138,10 @@ class RallyCursesUI(object):
 
   def handle_resize(self):
     self.ready.acquire() #we aren't ready
-    self.close()
-    thread.start_new_thread(self.render_chats, self.last_state, {})
-    self.start() #start will release ready
+    curses.endwin()
+    self.init_curses() 
+    self.ready.release()
+    self.render_chats(*self.last_state)
 
   def get_str_scrolling(self, window, start):
     """
@@ -147,10 +149,9 @@ class RallyCursesUI(object):
     """
     chars = ''
     xpos, ypos = start
-    window.keypad(1)
     while 1:
       curses.noecho()
-      new_chr = window.getch(ypos, xpos)
+      new_chr = self.new_msg_panel.getch(ypos, xpos)
       if new_chr == curses.KEY_DOWN:
         pass
       elif new_chr == curses.KEY_UP:
@@ -174,29 +175,28 @@ class RallyCursesUI(object):
       elif new_chr == curses.ascii.LF:
         break
       elif new_chr == curses.KEY_RESIZE:
-        #TODO: this call will never return so we could 
-        #exceed stack space by resizing a lot...
         self.handle_resize() 
+        continue
       else:
         chr_str = ''
         if new_chr < 255 and new_chr > 0:
           chr_str = chr(new_chr)
-        else:
-          chr_str = str(new_chr) 
-        chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
-        xpos += 1
-      window.addstr(1, 1, '')
-      window.addstr(start[0], start[1], chars + ' ')
-      window.refresh()
-    window.keypad(0)
+          chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
+          xpos += 1
+      self.new_msg_panel.addstr(1, 1, '')
+      self.new_msg_panel.addstr(start[0], start[1], chars + ' ')
+      self.new_msg_panel.refresh()
     return chars
 
   def read_next_message(self):
     msg = self.get_str_scrolling(self.new_msg_panel, (1,1))
+    if msg == None:
+      return True 
     with self.ui_lock:
       self.new_outgoing_message(msg)
       self.new_msg_panel.addstr(1, 1, '')
       self.new_msg_panel.clrtoeol()
       self.draw_input_box()
       self.new_msg_panel.refresh()
+    return True
 
