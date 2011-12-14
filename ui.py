@@ -1,6 +1,6 @@
 #ui.py
 #Copyright (C) 2011  Russell Cohen <rcoh@mit.edu>
-#                    Ally Galle <allygale@gmail.com>
+#                    Ally Gale <allygale@gmail.com>
 #
 # This file is part of Rally.
 #
