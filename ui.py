@@ -24,11 +24,10 @@ import sys
 import time
 import math
 from curses import wrapper
-from util import synchronized, async
+from util import synchronized, log
 from rally import ReliableChatClient 
 from model import Message
 import threading
-import thread
 import notify
 from Queue import Queue
 chat_height = 3
@@ -52,13 +51,17 @@ class RallyCursesUI(object):
     self.main_loop()
 
   def init_curses(self):
-    self.stdscr = curses.initscr()
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
-    curses.cbreak()
-    self.maxyx = self.stdscr.getmaxyx()
-    self.create_panels()
+    with self.ui_lock:
+      self.stdscr = curses.initscr()
+      curses.start_color()
+      curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
+      curses.cbreak()
+      curses.noecho()
+      self.update_size()
+      self.create_panels()
 
+  def update_size(self):
+      self.maxyx = self.stdscr.getmaxyx()
   def create_panels(self):
     my, mx = self.maxyx
     self.new_msg_panel = curses.newwin(chat_height, mx, my-chat_height, 0)
@@ -70,6 +73,7 @@ class RallyCursesUI(object):
 
   def main_loop(self):
     while 1:
+      log('active count: ' + str(threading.active_count()))
       self.read_next_message()
 
   def close(self):
@@ -139,8 +143,9 @@ class RallyCursesUI(object):
   def handle_resize(self):
     self.ready.acquire() #we aren't ready
     curses.endwin()
-    self.init_curses() 
-    self.ready.release()
+    self.update_size()
+    self.create_panels() 
+    self.ready.release() #now we are
     self.render_chats(*self.last_state)
 
   def get_str_scrolling(self, window, start):
@@ -150,7 +155,7 @@ class RallyCursesUI(object):
     chars = ''
     xpos, ypos = start
     while 1:
-      curses.noecho()
+      self.block_until_ready()
       new_chr = self.new_msg_panel.getch(ypos, xpos)
       if new_chr == curses.KEY_DOWN:
         pass
@@ -176,13 +181,15 @@ class RallyCursesUI(object):
         break
       elif new_chr == curses.KEY_RESIZE:
         self.handle_resize() 
-        continue
+#        continue
       else:
         chr_str = ''
         if new_chr < 255 and new_chr > 0:
           chr_str = chr(new_chr)
           chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
           xpos += 1
+        else:
+          continue
       self.new_msg_panel.addstr(1, 1, '')
       self.new_msg_panel.addstr(start[0], start[1], chars + ' ')
       self.new_msg_panel.refresh()
