@@ -45,7 +45,7 @@ class ReliableChatServer(ReliableChatServerSocket):
     self.sent_msgs = {} #who has been sent what?
     self.all_msgs = {} #hashcode -> msg
     self.identity = {} #socket_ptr -> name
-  
+
   def incoming_message(self, message, client):
     log(message)
     if message.is_ack():
@@ -115,6 +115,9 @@ class ReliableChatClient(ReliableChatClientSocket):
     self.acked_messages = {}
     self.queue_lock = threading.Lock() 
     self.connected = False
+  
+  def start(self):
+    self.try_connect()
 
   @retry_with_backoff("message_acked")
   def say_require_ack(self, message):

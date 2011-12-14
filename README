@@ -4,13 +4,13 @@ unix / linux.  It features extensive use of fancy python decorators, just for fu
 
 Usage:
 as a client:
-python ui.py [server] [port]
+python client.py [server] [port]
 
 By default it will hit my instance of the server which may or may not be up [but probably is at any given time]
 
 To start your own server:
 
-python server.py
+python server.py [port]
 
-
-By default, it operates on port 5959, which, of course, can be changed.
+By default, rally operates on port 5959.
+Communications are not encrpyted.  They are just pickled python objects.
