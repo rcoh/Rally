@@ -66,8 +66,9 @@ class RallyCursesUI(object):
 
 
   def main_loop(self):
-    keep_going = True
-    while keep_going:
+    #keep_going = True
+    #while keep_going:
+    while 1:
       keep_going = self.read_next_message()
 
   def close(self):
