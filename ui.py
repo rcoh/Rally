@@ -145,7 +145,7 @@ class RallyCursesUI(object):
       elif new_chr == curses.KEY_RIGHT:
         if xpos <= len(chars):
           xpos += 1
-      elif new_chr == curses.KEY_BACKSPACE:
+      elif new_chr == curses.ascii.DEL: #using ascii.DEL instead of KEY_BACKSPACE for mac compatibility 
         if xpos > 1:
           xpos -= 1 
         if xpos == len(chars): #deleting from end
