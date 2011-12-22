@@ -20,6 +20,9 @@
 from threading import Timer
 import thread
 
+import logging
+import logging.config
+
 class synchronized:
   def __init__(self, lockname):
     self.lockname = lockname
@@ -92,7 +95,17 @@ def async(function):
     thread.start_new_thread(function, argtup, kw)
   return wrap
 
-def log(output):
-  f = file('log', 'a')
-  f.write(str(output) + '\n')
-  f.close()
+def start_logger(name):
+#  try:
+    logging.basicConfig(filename='/var/log/rally/%(name)s.log' % {'name': name}, 
+                        level=logging.INFO, format='%(asctime)s' +
+                        '%(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+#  except IOError:
+#    raise Exception('Run sudo setup.sh to setup logging')
+
+def get_logger(cls):
+  return logging.getLogger(cls.__class__.__name__)
+
+def log(self):
+  pass
+

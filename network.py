@@ -20,7 +20,7 @@
 import socket
 import SocketServer
 import threading
-from util import async, synchronized, log
+from util import async, synchronized, get_logger
 from model import Message 
 SERVER_PORT = 5959
 SERVER_LOC = '' 
@@ -35,6 +35,7 @@ class ReliableChatClientSocket(object):
     self.sock = None
     self.buffer = []
     self.b_lock = threading.Lock()
+    self.logger = get_logger(self)
 
   def connect(self):
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -105,8 +106,8 @@ class ReliableChatServerSocket(SocketServer.ThreadingMixIn,
     except Exception as ex:
       #this client died
       self.client_ptrs.remove(client_ptr)
-      log('client died')
-      log(ex)
+      self.logger.info('client died')
+      self.logger.info(ex)
 
   def incoming_message(self, msg, client_ptr):
     """To be overriden."""
@@ -123,7 +124,7 @@ class ReliableChatRequestHandler(SocketServer.StreamRequestHandler):
       try:
         chunk = self.connection.recv(1024)
       except Exception as ex:
-        log(ex)
+        self.logger.info(ex)
         break
       if not chunk:
         break

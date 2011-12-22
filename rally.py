@@ -22,7 +22,8 @@ import pickle
 from threading import Thread
 from network import ReliableChatServerSocket, ReliableChatClientSocket 
 from model import Message
-from util import synchronized, retry_with_backoff, log
+from util import synchronized, retry_with_backoff, log, get_logger
+import logging
 """General principle: 
   Client sends message -> Server replies message to all clients
   Client sends message hash back as ack to server.
@@ -45,9 +46,10 @@ class ReliableChatServer(ReliableChatServerSocket):
     self.sent_msgs = {} #who has been sent what?
     self.all_msgs = {} #hashcode -> msg
     self.identity = {} #socket_ptr -> name
+    self.logger = get_logger(self)
 
   def incoming_message(self, message, client):
-    log(message)
+    self.logger.info(message)
     if message.is_ack():
       self.ack_received(message, client) 
     #TODO: hashing scheme to provide proof of no-missed-messages
@@ -87,7 +89,7 @@ class ReliableChatServer(ReliableChatServerSocket):
         Message('Server', self.identity[client] + ' has connected', 0))
 
   def update_identity(self, message, client):
-    print 'we know that ' + str(client) + ' is ' + message.sender
+    self.logger.info('we know that ' + str(client) + ' is ' + message.sender)
     self.identity[client] = message.sender
 
 #  @retry_with_backoff("msg_acked")
@@ -95,20 +97,20 @@ class ReliableChatServer(ReliableChatServerSocket):
     self.send_msg(client_ptr, message)
   
   def ack_received(self, message, client):
-    print 'got an ack!', message.content
-    print 'num threads: ', threading.active_count()
+    self.logger.info('got an ack!' +  message.content)
+    self.logger.info('num threads: ' + threading.active_count())
     if not message.content in self.msg_acks: #the content of an ack is the hash
       self.msg_acks[message.content] = []
     self.msg_acks[message.content].append(client)
 
   def msg_acked(self, client, message):
-    print message, message.get_hash()
     if message.get_hash() in self.msg_acks:
       return client in self.msg_acks[message.get_hash()]
 
 class ReliableChatClient(ReliableChatClientSocket):
   
   def __init__(self, user_name, server_loc):
+    self.logger = get_logger(self)
     super(ReliableChatClient, self).__init__(*server_loc)
     self.user_name = user_name
     self.msg_stack = [] #(timestmap, msg), kept sorted

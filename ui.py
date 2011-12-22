@@ -23,13 +23,11 @@ import curses.ascii
 import sys
 import time
 import math
-from curses import wrapper
-from util import synchronized, log
+from util import log
 from rally import ReliableChatClient 
 from model import Message
 import threading
 import notify
-from Queue import Queue
 chat_height = 3
 
 class RallyCursesUI(object):
@@ -86,7 +84,8 @@ class RallyCursesUI(object):
     self.new_msg_panel.box()
 
   def total_lines_required(self, messages, acked_dict, width):
-    return sum([self.lines_required(m, m.get_hash() in acked_dict, width) for m in messages])
+    return sum([self.lines_required(m, m.get_hash() in acked_dict, width) 
+                for m in messages])
 
   def lines_required(self, message, acked, width):
     return int(math.ceil((len(self.get_message_text(message, acked)) +
@@ -94,7 +93,8 @@ class RallyCursesUI(object):
 
   def get_message_text(self, message, acked):
     localtime = time.localtime(message.timestamp)
-    base = message.sender + '(' + time.strftime("%H:%M", localtime) + '): ' + message.content
+    base = message.sender + '(' + \
+      time.strftime("%H:%M", localtime) + '): ' + message.content
     if acked: 
       return base
     else:
@@ -121,8 +121,10 @@ class RallyCursesUI(object):
           lines_required = self.lines_required(msg, msg.get_hash() in acked_dict,  width)
           cur_y -= lines_required
           if cur_y >= 0:
-            color = curses.COLOR_BLACK if msg.get_hash() in acked_dict else curses.color_pair(1) 
-            self.old_chats.addstr(cur_y, 0, self.get_message_text(msg, msg.get_hash() in acked_dict), color)
+            color = curses.COLOR_BLACK if \
+                msg.get_hash() in acked_dict else curses.color_pair(1) 
+            self.old_chats.addstr(cur_y, 0, self.get_message_text(
+                msg, msg.get_hash() in acked_dict), color)
           message_index -= 1
 
       self.old_chats.refresh()
@@ -167,7 +169,8 @@ class RallyCursesUI(object):
       elif new_chr == curses.KEY_RIGHT:
         if xpos <= len(chars):
           xpos += 1
-      elif new_chr == curses.KEY_BACKSPACE or new_chr == curses.ascii.DEL: #checking ascii.DEL for mac compatibility 
+      #checking ascii.DEL for mac compatibility 
+      elif new_chr == curses.KEY_BACKSPACE or new_chr == curses.ascii.DEL:
         if xpos > 1:
           xpos -= 1 
         if xpos == len(chars): #deleting from end
@@ -181,7 +184,6 @@ class RallyCursesUI(object):
         break
       elif new_chr == curses.KEY_RESIZE:
         self.handle_resize() 
-#        continue
       else:
         chr_str = ''
         if new_chr < 255 and new_chr > 0:

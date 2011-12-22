@@ -20,9 +20,11 @@
 from rally import ReliableChatClient
 from ui import RallyCursesUI
 from model import Message
+from util import start_logger
 import sys
 class RallyClient(object):
   def __init__(self, server, port):
+    start_logger('client') 
     self.user_name = raw_input('user name?')
     self.client = ReliableChatClient(self.user_name, (server, port))
     self.ui = RallyCursesUI()
