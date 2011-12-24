@@ -23,7 +23,7 @@ import curses.ascii
 import sys
 import time
 import math
-from util import log
+from util import get_logger 
 from rally import ReliableChatClient 
 from model import Message
 import threading
@@ -36,6 +36,7 @@ class RallyCursesUI(object):
     self.ready = threading.Semaphore(0)
     self.ui_lock = threading.RLock()
     self.last_state = ([], {})
+    self.logger = get_logger(self)
     notify.init('Rally')
 
   def notify(self, title, msg):
@@ -60,6 +61,7 @@ class RallyCursesUI(object):
 
   def update_size(self):
       self.maxyx = self.stdscr.getmaxyx()
+
   def create_panels(self):
     my, mx = self.maxyx
     self.new_msg_panel = curses.newwin(chat_height, mx, my-chat_height, 0)
@@ -71,7 +73,7 @@ class RallyCursesUI(object):
 
   def main_loop(self):
     while 1:
-      log('active count: ' + str(threading.active_count()))
+      self.logger.info('active ui thread count: ' + str(threading.active_count()))
       self.read_next_message()
 
   def close(self):
@@ -178,8 +180,14 @@ class RallyCursesUI(object):
         else:
           chars = chars[:xpos] + chars[xpos+1:]
       elif curses.ascii.isalnum(new_chr):
-        chars = chars[:xpos-1] + chr(new_chr) + chars[xpos-1:]
-        xpos += 1
+        self.logger.info('chars: ' + str(len(chars)))
+        self.logger.info('max: ' + str(self.max_message_length()))
+        if len(chars) + 1 <= self.max_message_length():
+          chars = chars[:xpos-1] + chr(new_chr) + chars[xpos-1:]
+          xpos += 1
+        else:
+          self.logger.error('end of line')
+          curses.beep() #for some reason the beep isn't happening...
       elif new_chr == curses.ascii.LF:
         break
       elif new_chr == curses.KEY_RESIZE:
@@ -188,14 +196,21 @@ class RallyCursesUI(object):
         chr_str = ''
         if new_chr < 255 and new_chr > 0:
           chr_str = chr(new_chr)
-          chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
-          xpos += 1
+          if len(chars) + 1 <= self.max_message_length():
+            chars = chars[:xpos-1] + chr_str + chars[xpos-1:]
+            xpos += 1
+          else:
+            self.logger.error('out of space')
+            curses.flash()
         else:
           continue
       self.new_msg_panel.addstr(1, 1, '')
       self.new_msg_panel.addstr(start[0], start[1], chars + ' ')
       self.new_msg_panel.refresh()
     return chars
+
+  def max_message_length(self):
+    return self.maxyx[1] - 2
 
   def read_next_message(self):
     msg = self.get_str_scrolling(self.new_msg_panel, (1,1))
