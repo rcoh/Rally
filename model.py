@@ -20,7 +20,7 @@
 import pickle
 import time
 import hashlib
-from util import log 
+from util import get_logger 
 
 CONTENT_MESSAGE = 0
 ACK_MESSAGE = 1
@@ -37,6 +37,7 @@ class Message(object):
     self.sender = str(sender)
     self.content = str(content)
     self.timestamp = time.time()
+#    self.logger = get_logger(self)
     self.type = msg_type
 
   def get_hash(self):
@@ -78,11 +79,11 @@ class Message(object):
       return None, leftovers
     try:
       message = pickle.loads(msg) #strip newline character
-      log('good message' + data) 
+#      self.logger.info('good message' + data) 
       return message, leftovers
    
     except Exception as ex:
-      log('bad' + data)
+#      self.logger.info('bad' + data)
       return Message('message parsing failed', 'failure', 0)
 
   def message_set_hash(message_set):
