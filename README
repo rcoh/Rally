@@ -1,5 +1,5 @@
 Copyright (C) 2011  Russell Cohen <rcoh@mit.edu>,
-                    Ally Gale <allygale@mit.edu>
+                    Ally Gale <allygale@gmail.com>
 See the end of the file for license conditions.
 
 Rally is basic reliable chat implementation written in python.  Its mission is to provide reliable communication on
